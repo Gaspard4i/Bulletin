@@ -10,6 +10,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -42,14 +43,12 @@ final class AuthController extends AbstractController
      * Redirects the user to the CAS server login page.
      */
     #[Route('/cas/login', name: 'api_cas_login', methods: ['GET'])]
-    public function casLogin(): JsonResponse
+    public function casLogin(): RedirectResponse
     {
         $casBaseUrl = $this->getParameter('cas_base_url');
         $serviceUrl = $this->generateUrl('api_cas_callback', [], \Symfony\Component\Routing\Generator\UrlGeneratorInterface::ABSOLUTE_URL);
 
-        return new JsonResponse([
-            'redirect_url' => sprintf('%s/login?service=%s', $casBaseUrl, urlencode($serviceUrl)),
-        ]);
+        return new RedirectResponse(sprintf('%s/login?service=%s', $casBaseUrl, urlencode($serviceUrl)));
     }
 
     /**
@@ -57,7 +56,7 @@ final class AuthController extends AbstractController
      * Validates the CAS ticket and returns a JWT token.
      */
     #[Route('/cas/callback', name: 'api_cas_callback', methods: ['GET'])]
-    public function casCallback(Request $request, HttpClientInterface $httpClient): JsonResponse
+    public function casCallback(Request $request, HttpClientInterface $httpClient): RedirectResponse|JsonResponse
     {
         $ticket = $request->query->get('ticket');
         if (!$ticket) {
@@ -113,8 +112,9 @@ final class AuthController extends AbstractController
         }
 
         $token = $this->jwtManager->create($user);
+        $frontendUrl = $this->getParameter('frontend_url');
 
-        return new JsonResponse(['token' => $token]);
+        return new RedirectResponse(sprintf('%s/auth/callback?token=%s', $frontendUrl, urlencode($token)));
     }
 
     /**
@@ -122,7 +122,7 @@ final class AuthController extends AbstractController
      * Returns the GitHub authorization URL for the frontend to redirect to.
      */
     #[Route('/github/login', name: 'api_github_login', methods: ['GET'])]
-    public function githubLogin(): JsonResponse
+    public function githubLogin(): RedirectResponse
     {
         $clientId = $this->getParameter('github_client_id');
         $redirectUri = $this->generateUrl('api_github_callback', [], \Symfony\Component\Routing\Generator\UrlGeneratorInterface::ABSOLUTE_URL);
@@ -134,17 +134,17 @@ final class AuthController extends AbstractController
             urlencode('user:email'),
         );
 
-        return new JsonResponse(['redirect_url' => $url]);
+        return new RedirectResponse($url);
     }
 
     /**
      * GitHub OAuth callback.
      * Exchanges the authorization code for an access token, fetches user info, and returns a JWT.
      */
-    #[Route('/github/callback', name: 'api_github_callback', methods: ['GET', 'POST'])]
-    public function githubCallback(Request $request, HttpClientInterface $httpClient): JsonResponse
+    #[Route('/github/callback', name: 'api_github_callback', methods: ['GET'])]
+    public function githubCallback(Request $request, HttpClientInterface $httpClient): RedirectResponse|JsonResponse
     {
-        $code = $request->query->get('code') ?? $request->request->get('code');
+        $code = $request->query->get('code');
         if (!$code) {
             return new JsonResponse(['error' => 'Missing authorization code.'], Response::HTTP_BAD_REQUEST);
         }
@@ -247,8 +247,9 @@ final class AuthController extends AbstractController
         }
 
         $token = $this->jwtManager->create($user);
+        $frontendUrl = $this->getParameter('frontend_url');
 
-        return new JsonResponse(['token' => $token]);
+        return new RedirectResponse(sprintf('%s/auth/callback?token=%s', $frontendUrl, urlencode($token)));
     }
 
     /**

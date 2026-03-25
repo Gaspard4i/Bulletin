@@ -11,6 +11,7 @@ import { BulletinsPage } from "@/pages/student/BulletinsPage";
 import { GradesPage } from "@/pages/teacher/GradesPage";
 import { ValidationPage } from "@/pages/scolarite/ValidationPage";
 import { UsersPage } from "@/pages/admin/UsersPage";
+import { AuthCallbackPage } from "@/pages/AuthCallbackPage";
 
 const rootRoute = createRootRoute({
   component: App,
@@ -20,6 +21,12 @@ const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/login",
   component: LoginPage,
+});
+
+const authCallbackRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/auth/callback",
+  component: AuthCallbackPage,
 });
 
 const dashboardLayoutRoute = createRoute({
@@ -66,6 +73,7 @@ const usersRoute = createRoute({
 
 export const routeTree = rootRoute.addChildren([
   loginRoute,
+  authCallbackRoute,
   dashboardLayoutRoute.addChildren([
     dashboardRoute,
     bulletinsRoute,

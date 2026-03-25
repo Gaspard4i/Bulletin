@@ -60,12 +60,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginWithCAS = useCallback(() => {
     const apiUrl = import.meta.env.VITE_API_URL || "/api";
-    window.location.href = `${apiUrl}/auth/cas`;
+    window.location.href = `${apiUrl}/auth/cas/login`;
   }, []);
 
   const loginWithGitHub = useCallback(() => {
     const apiUrl = import.meta.env.VITE_API_URL || "/api";
-    window.location.href = `${apiUrl}/auth/github`;
+    window.location.href = `${apiUrl}/auth/github/login`;
   }, []);
 
   const logout = useCallback(() => {
