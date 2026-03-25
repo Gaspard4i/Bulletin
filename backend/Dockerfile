@@ -7,7 +7,8 @@ WORKDIR /app
 
 COPY composer.json composer.lock ./
 
-RUN composer install \
+RUN composer config platform.php 8.3.30 && \
+    composer update \
     --no-dev \
     --no-scripts \
     --no-autoloader \
@@ -44,7 +45,7 @@ COPY docker/php/xdebug.ini /usr/local/etc/php/conf.d/xdebug.ini
 
 # In dev, we mount the source as a volume, but copy composer files for initial setup
 COPY composer.json composer.lock ./
-RUN composer install --prefer-dist --no-interaction --no-scripts
+RUN composer update --prefer-dist --no-interaction --no-scripts
 
 COPY . .
 
