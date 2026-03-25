@@ -49,14 +49,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [getCurrentUser]);
 
   const login = useCallback(async (email: string, password: string) => {
-    const { data } = await api.post<LoginResponse>("/auth/login", {
+    const { data } = await api.post("/login", {
       email,
       password,
     });
-    localStorage.setItem("access_token", data.tokens.accessToken);
-    localStorage.setItem("refresh_token", data.tokens.refreshToken);
-    setUser(data.user);
-  }, []);
+    localStorage.setItem("access_token", data.token);
+    await getCurrentUser();
+  }, [getCurrentUser]);
 
   const loginWithCAS = useCallback(() => {
     const apiUrl = import.meta.env.VITE_API_URL || "/api";
