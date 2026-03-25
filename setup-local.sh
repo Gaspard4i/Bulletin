@@ -106,21 +106,14 @@ log "Docker fonctionne"
 # =============================================================================
 # STEP 3: Clone the repository
 # =============================================================================
-step "3/8 - Clone du repository"
+step "3/8 - Verification du repository"
 
-PROJECT_DIR="$HOME/Bulletin"
-
-if [ -d "$PROJECT_DIR/.git" ]; then
-    log "Repository deja clone dans $PROJECT_DIR"
-    cd "$PROJECT_DIR"
-    info "Pull des dernieres modifications..."
-    git pull origin main 2>/dev/null || true
-else
-    info "Clone de Gaspard4i/Bulletin..."
-    git clone https://github.com/Gaspard4i/Bulletin.git "$PROJECT_DIR"
-    log "Repository clone dans $PROJECT_DIR"
-    cd "$PROJECT_DIR"
+# Le script s'execute depuis le dossier du projet (deja clone)
+if [ ! -f "docker-compose.local.yml" ]; then
+    error "Fichier docker-compose.local.yml introuvable.\n  Assure-toi d'etre dans le dossier du projet Bulletin.\n  cd /chemin/vers/Bulletin && bash setup-local.sh"
 fi
+
+log "Repository detecte dans $(pwd)"
 
 # =============================================================================
 # STEP 4: Download traefik.me SSL certificates
