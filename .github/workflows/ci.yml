@@ -59,11 +59,11 @@ jobs:
 
       - name: Run PHP CS Fixer
         working-directory: backend
-        run: vendor/bin/php-cs-fixer fix --dry-run --diff --format=github
+        run: php-cs-fixer fix --dry-run --diff --format=github
 
       - name: Run PHPStan
         working-directory: backend
-        run: vendor/bin/phpstan analyse --error-format=github
+        run: phpstan analyse --error-format=github
 
   # ---------------------------------------------------------------------------
   # Frontend Linting
@@ -175,7 +175,7 @@ jobs:
 
       - name: Run Vitest
         working-directory: frontend
-        run: npx vitest run --coverage
+        run: npx vitest run
 
   # ---------------------------------------------------------------------------
   # Build & Push Docker Images
