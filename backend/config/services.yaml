@@ -1,0 +1,16 @@
+parameters:
+    cas_base_url: '%env(CAS_BASE_URL)%'
+    github_client_id: '%env(GITHUB_CLIENT_ID)%'
+    github_client_secret: '%env(GITHUB_CLIENT_SECRET)%'
+
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    App\:
+        resource: '../src/'
+        exclude:
+            - '../src/DependencyInjection/'
+            - '../src/Entity/'
+            - '../src/Kernel.php'

@@ -1,0 +1,84 @@
+# =============================================================================
+# Bulletin - Development Overrides
+# =============================================================================
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # Symfony API - Development
+  # ---------------------------------------------------------------------------
+  symfony-api:
+    build:
+      target: dev
+    volumes:
+      - ./backend:/app
+      - backend-vendor:/app/vendor
+    environment:
+      APP_ENV: dev
+      APP_DEBUG: "1"
+      MAILER_DSN: "smtp://mailpit:1025"
+      XDEBUG_MODE: "${XDEBUG_MODE:-off}"
+      PHP_IDE_CONFIG: "serverName=bulletin"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # ---------------------------------------------------------------------------
+  # React Frontend - Vite Dev Server
+  # ---------------------------------------------------------------------------
+  react-app:
+    build:
+      target: dev
+    volumes:
+      - ./frontend:/app
+      - frontend-node-modules:/app/node_modules
+    environment:
+      NODE_ENV: development
+      VITE_API_URL: "http://localhost/api"
+    ports:
+      - "3000:3000"
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL - Development
+  # ---------------------------------------------------------------------------
+  postgresql:
+    volumes:
+      - pgdata-dev:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  # ---------------------------------------------------------------------------
+  # Redis - Development (no persistence)
+  # ---------------------------------------------------------------------------
+  redis:
+    command: redis-server --save "" --appendonly no
+    ports:
+      - "6379:6379"
+
+  # ---------------------------------------------------------------------------
+  # Nginx - Development Reverse Proxy
+  # ---------------------------------------------------------------------------
+  nginx-proxy:
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "80:80"
+
+  # ---------------------------------------------------------------------------
+  # Mailpit - Email Testing
+  # ---------------------------------------------------------------------------
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "true"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+    networks:
+      - bulletin-network
+
+volumes:
+  pgdata-dev:
+  backend-vendor:
+  frontend-node-modules:

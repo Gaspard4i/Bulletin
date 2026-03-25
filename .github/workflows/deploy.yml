@@ -1,0 +1,155 @@
+# =============================================================================
+# Bulletin - Deploy Pipeline
+# =============================================================================
+
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: deploy-${{ github.event.inputs.environment || 'production' }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/bulletin
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Build & Push Docker Images
+  # ---------------------------------------------------------------------------
+  build-and-push:
+    name: Build & Push Images
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Generate image tag
+        id: meta
+        run: |
+          SHA_SHORT=$(echo "$GITHUB_SHA" | head -c 7)
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          echo "tag=${TIMESTAMP}-${SHA_SHORT}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          target: prod
+          push: true
+          tags: |
+            ${{ env.IMAGE_PREFIX }}-api:${{ steps.meta.outputs.tag }}
+            ${{ env.IMAGE_PREFIX }}-api:latest
+          cache-from: type=gha,scope=backend-deploy
+          cache-to: type=gha,mode=max,scope=backend-deploy
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          target: prod
+          push: true
+          tags: |
+            ${{ env.IMAGE_PREFIX }}-frontend:${{ steps.meta.outputs.tag }}
+            ${{ env.IMAGE_PREFIX }}-frontend:latest
+          cache-from: type=gha,scope=frontend-deploy
+          cache-to: type=gha,mode=max,scope=frontend-deploy
+
+  # ---------------------------------------------------------------------------
+  # Deploy to VPS
+  # ---------------------------------------------------------------------------
+  deploy:
+    name: Deploy to ${{ github.event.inputs.environment || 'production' }}
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    environment: ${{ github.event.inputs.environment || 'production' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          script: |
+            set -e
+
+            cd ${{ secrets.DEPLOY_PATH || '/opt/bulletin' }}
+
+            # Pull latest images
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            export IMAGE_TAG="${{ needs.build-and-push.outputs.image_tag }}"
+            export API_IMAGE="${{ env.IMAGE_PREFIX }}-api:${IMAGE_TAG}"
+            export FRONTEND_IMAGE="${{ env.IMAGE_PREFIX }}-frontend:${IMAGE_TAG}"
+
+            docker pull "${API_IMAGE}"
+            docker pull "${FRONTEND_IMAGE}"
+
+            # Update running containers
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build
+
+            # Run migrations
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T symfony-api php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
+
+            # Warm Symfony cache
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T symfony-api php bin/console cache:warmup --env=prod
+
+            # Verify health
+            sleep 10
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
+
+            echo "Deployment complete: ${IMAGE_TAG}"
+
+      - name: Verify deployment
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          script: |
+            cd ${{ secrets.DEPLOY_PATH || '/opt/bulletin' }}
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml ps --format "table {{.Name}}\t{{.Status}}"
+
+            # Check that all services are healthy/running
+            UNHEALTHY=$(docker compose -f docker-compose.yml -f docker-compose.prod.yml ps --format json | grep -c '"Health":"unhealthy"' || true)
+            if [ "$UNHEALTHY" -gt 0 ]; then
+              echo "WARNING: $UNHEALTHY unhealthy service(s) detected"
+              exit 1
+            fi
+            echo "All services healthy"
