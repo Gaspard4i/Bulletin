@@ -180,57 +180,34 @@ jobs:
   # ---------------------------------------------------------------------------
   # Build & Push Docker Images
   # ---------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # Build Docker Images (all branches - build only, no push)
+  # ---------------------------------------------------------------------------
   build-docker:
     name: Build Docker Images
     runs-on: ubuntu-latest
     needs: [test-backend, test-frontend]
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
-
-    permissions:
-      contents: read
-      packages: write
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Extract metadata
-        id: meta
-        run: |
-          BRANCH=${GITHUB_REF#refs/heads/}
-          SHA_SHORT=$(echo "$GITHUB_SHA" | head -c 7)
-          echo "tag=${BRANCH}-${SHA_SHORT}" >> "$GITHUB_OUTPUT"
-          echo "branch_tag=${BRANCH}" >> "$GITHUB_OUTPUT"
-
-      - name: Build and push backend image
+      - name: Build backend image
         uses: docker/build-push-action@v6
         with:
           context: ./backend
           target: prod
-          push: true
-          tags: |
-            ${{ env.IMAGE_PREFIX }}-api:${{ steps.meta.outputs.tag }}
-            ${{ env.IMAGE_PREFIX }}-api:${{ steps.meta.outputs.branch_tag }}
+          push: false
           cache-from: type=gha,scope=backend
           cache-to: type=gha,mode=max,scope=backend
 
-      - name: Build and push frontend image
+      - name: Build frontend image
         uses: docker/build-push-action@v6
         with:
           context: ./frontend
           target: prod
-          push: true
-          tags: |
-            ${{ env.IMAGE_PREFIX }}-frontend:${{ steps.meta.outputs.tag }}
-            ${{ env.IMAGE_PREFIX }}-frontend:${{ steps.meta.outputs.branch_tag }}
+          push: false
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,mode=max,scope=frontend
