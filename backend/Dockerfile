@@ -52,13 +52,12 @@ COPY . .
 RUN composer dump-autoload
 
 # Ensure var directory exists with correct permissions
-RUN mkdir -p var/cache var/log && chown -R www-data:www-data var
-
-USER www-data
+RUN mkdir -p var/cache var/log && chmod -R 777 var
 
 EXPOSE 9000
 
-CMD ["php-fpm"]
+# Create var dirs on startup (needed when volume is mounted over /app)
+CMD ["sh", "-c", "mkdir -p /app/var/cache /app/var/log && php-fpm"]
 
 # =============================================================================
 # Stage 3: Production
