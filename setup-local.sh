@@ -81,24 +81,31 @@ else
     warn "Tu devras peut-etre relancer ton terminal pour que Docker fonctionne sans sudo"
 fi
 
-# Start Docker daemon if not running (WSL specific)
-if ! sudo service docker status &>/dev/null 2>&1; then
-    info "Demarrage du daemon Docker..."
-    sudo service docker start
-    sleep 2
-fi
-
-# Test Docker (with sudo fallback for fresh install)
-if ! docker info &>/dev/null 2>&1; then
-    if ! sudo docker info &>/dev/null 2>&1; then
-        error "Docker ne demarre pas. Essaie: sudo service docker start"
-    fi
-    warn "Docker necessite sudo (relance ton terminal apres l'install pour fix)"
-    DOCKER_CMD="sudo docker"
-    COMPOSE_CMD="sudo docker compose"
-else
+# Test if Docker daemon is reachable (works with Docker Desktop WSL2 integration OR native)
+if docker info &>/dev/null 2>&1; then
     DOCKER_CMD="docker"
     COMPOSE_CMD="docker compose"
+    log "Docker daemon accessible"
+elif sudo docker info &>/dev/null 2>&1; then
+    DOCKER_CMD="sudo docker"
+    COMPOSE_CMD="sudo docker compose"
+    warn "Docker necessite sudo (relance ton terminal apres l'install pour fix)"
+else
+    # Try starting native docker service (won't work with Docker Desktop, that's OK)
+    info "Tentative de demarrage du daemon Docker..."
+    sudo service docker start 2>/dev/null || true
+    sleep 2
+
+    if docker info &>/dev/null 2>&1; then
+        DOCKER_CMD="docker"
+        COMPOSE_CMD="docker compose"
+    elif sudo docker info &>/dev/null 2>&1; then
+        DOCKER_CMD="sudo docker"
+        COMPOSE_CMD="sudo docker compose"
+    else
+        echo ""
+        error "Docker n'est pas accessible.\n\n  Si tu utilises Docker Desktop (Windows) :\n    1. Ouvre Docker Desktop sur Windows\n    2. Settings > Resources > WSL Integration > active Ubuntu\n    3. Apply & Restart\n    4. Ferme et rouvre ton terminal WSL\n    5. Relance: bash setup-local.sh\n\n  Si tu utilises Docker natif (Linux) :\n    sudo service docker start"
+    fi
 fi
 
 log "Docker fonctionne"
