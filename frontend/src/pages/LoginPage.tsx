@@ -28,7 +28,7 @@ export function LoginPage() {
 
     try {
       await login(email, password);
-      navigate({ to: "/dashboard" });
+      navigate({ to: "/" });
     } catch {
       setError("Identifiants invalides. Veuillez réessayer.");
     } finally {
