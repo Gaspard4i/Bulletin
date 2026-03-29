@@ -1,34 +1,3 @@
-# Dependencies
-node_modules/
-vendor/
-
-# Build outputs
-dist/
-build/
-var/
-
-# Environment files
-.env
-.env.local
-.env.*.local
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Docker
-docker-compose.override.yml
-
-# Logs
-*.log
-npm-debug.log*
-
-# Cache
-.php-cs-fixer.cache
-.phpunit.result.cache
+.claude/
+CLAUDE.md
+PLAN.md
